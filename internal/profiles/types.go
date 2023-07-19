@@ -4,9 +4,9 @@ type CollectionProfile string
 type CollectionProfiles []CollectionProfile
 
 const (
-	CollectionProfileOptInLabel = "monitoring.openshift.io/collection-profile"
-	FullCollectionProfile       = "full"
-	MinimalCollectionProfile    = "minimal"
+	CollectionProfileOptInLabel                   = "monitoring.openshift.io/collection-profile"
+	FullCollectionProfile       CollectionProfile = "full"
+	MinimalCollectionProfile    CollectionProfile = "minimal"
 )
 
 var SupportedCollectionProfiles = CollectionProfiles{FullCollectionProfile, MinimalCollectionProfile}

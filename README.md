@@ -6,6 +6,10 @@ OpenShift to adopt the [Scrape Profiles] enhancement and help diversify their mo
 
 [Scrape Profiles]: https://github.com/openshift/enhancements/blob/719b231e3b06cf274e77f0d89e46a0d258002572/enhancements/monitoring/scrape-profiles.md?plain=1
 
+### Todos
+
+- [ ] Add support for fetching the set of metrics required by a dashboard (under a profile).
+
 ## Usage
 
 `cpv` expects the following set of flags.
@@ -17,6 +21,8 @@ Usage of ./cpv:
         Address of the Prometheus instance. (default "http://localhost:9090")
   -bearer-token string
         Bearer token for authentication.
+  -guess-minimal-profile string
+        Guess the metrics needed to implement minimal collection profile, can be a path to a rule file, or a set of constraints (targets) to fetch metrics from.
   -impl-stats
         Report collection profiles implementation status.
   -kubeconfigPath string

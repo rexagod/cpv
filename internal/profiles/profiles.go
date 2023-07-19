@@ -7,10 +7,9 @@ import (
 )
 
 var ProfileOperators = map[CollectionProfile]func(
-	ctx context.Context,
-	profile CollectionProfile,
-	dc *dynamic.DynamicClient,
-	c *client.Client,
+	context.Context,
+	*dynamic.DynamicClient,
+	*client.Client,
 ) error{
 	FullCollectionProfile: nil,
 	// A minimal collection profile is a collection profile that only collects metrics necessary for:
@@ -19,4 +18,16 @@ var ProfileOperators = map[CollectionProfile]func(
 	//  * recording rules, and,
 	//  * telemetry.
 	MinimalCollectionProfile: MinimalCollectionProfileOperator,
+}
+
+var ProfileGuessers = map[CollectionProfile]func(
+	context.Context,
+	*dynamic.DynamicClient,
+	*client.Client,
+	...interface{},
+) error{
+	FullCollectionProfile: nil,
+	// A minimal collection profile Guesser estimates the metrics needed to implement minimal collection profile from a
+	// given set of constraints (targets).
+	MinimalCollectionProfile: GuessMinimalProfile,
 }

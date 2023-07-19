@@ -12,7 +12,8 @@ import (
 	"regexp"
 )
 
-func MinimalCollectionProfileOperator(ctx context.Context, profile CollectionProfile, dc *dynamic.DynamicClient, c *client.Client) error {
+func MinimalCollectionProfileOperator(ctx context.Context, dc *dynamic.DynamicClient, c *client.Client) error {
+	profile := MinimalCollectionProfile
 	// Fetch all monitors for the profile.
 	podMonitors, serviceMonitors, err := fetchMonitorsForProfile(ctx, dc, profile)
 	if err != nil {
@@ -47,10 +48,10 @@ func MinimalCollectionProfileOperator(ctx context.Context, profile CollectionPro
 		regexps.Union(expr)
 	}
 
-	// Check if the metrics in the rules are loaded.
-	// If not, check if they match any of the regexps.
-	// If they do, then we have a direct correlation between a rule using a metric that is defined by a profile-specific monitor.
-	// This essentially means that the associated profile does not have all the required metrics available at this point of time.
+	// Check if the metrics in the rules are loaded. If not, check if they match any of the regexps. If they do, then we
+	// have a direct correlation between a rule using a metric that is defined by a profile-specific monitor. This
+	// essentially means that the associated profile does not have all the required metrics available at this point of
+	// time.
 	for _, group := range rules.Groups {
 		for _, rule := range group.Rules {
 			var q string
