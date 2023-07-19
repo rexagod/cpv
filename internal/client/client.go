@@ -3,11 +3,12 @@ package client
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/prometheus/client_golang/api"
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
-	"time"
 )
 
 func NewClient(ctx context.Context, address, bearerToken string) *Client {
@@ -27,9 +28,11 @@ func (c *Client) Init() error {
 		return fmt.Errorf("failed to create Prometheus client: %w", err)
 	}
 	c.API = v1.NewAPI(client)
+
 	return nil
 }
 
 func (c *Client) Query(query string) (model.Value, v1.Warnings, error) {
+	//nolint:wrapcheck
 	return c.API.Query(c.ctx, query, time.Now())
 }

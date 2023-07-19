@@ -3,6 +3,7 @@ package profiles
 import (
 	"context"
 	"fmt"
+
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 )
@@ -20,7 +21,7 @@ func ReportImplementationStatus(ctx context.Context, dc *dynamic.DynamicClient) 
 	for _, profile := range SupportedCollectionProfiles {
 		podMonitors, serviceMonitors, err := fetchMonitorsForProfile(ctx, dc, profile)
 		if err != nil {
-			return fmt.Errorf("failed to fetch service monitors for profile %s: %v", profile, err)
+			return fmt.Errorf("failed to fetch service monitors for profile %s: %w", profile, err)
 		}
 		for _, serviceMonitor := range serviceMonitors.Items {
 			mServiceMonitors[profile].Insert(serviceMonitor.GetName())
@@ -53,5 +54,6 @@ func ReportImplementationStatus(ctx context.Context, dc *dynamic.DynamicClient) 
 			}
 		}
 	}
+
 	return nil
 }

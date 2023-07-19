@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 )
 

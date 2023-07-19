@@ -3,13 +3,14 @@ package profiles
 import (
 	"context"
 	"fmt"
+	"regexp"
+
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/prometheus/promql/parser"
 	"github.com/rexagod/cpv/internal/client"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
-	"regexp"
 )
 
 func MinimalCollectionProfileOperator(ctx context.Context, dc *dynamic.DynamicClient, c *client.Client) error {
@@ -24,7 +25,7 @@ func MinimalCollectionProfileOperator(ctx context.Context, dc *dynamic.DynamicCl
 	var metrics sets.Set[string]
 	targets, err := c.TargetsMetadata(ctx, "", "", "")
 	if err != nil {
-		return fmt.Errorf("failed to fetch targets metadata: %v", err)
+		return fmt.Errorf("failed to fetch targets metadata: %w", err)
 	}
 	for _, data := range targets {
 		m := data.Metric
@@ -34,7 +35,7 @@ func MinimalCollectionProfileOperator(ctx context.Context, dc *dynamic.DynamicCl
 	// `rules` has all the rules discovered by the Prometheus instance at `--address`.
 	rules, err := c.Rules(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to fetch rules: %v", err)
+		return fmt.Errorf("failed to fetch rules: %w", err)
 	}
 
 	// regexps is the collective union of all the profile-defining regexps from all the monitors.
@@ -72,11 +73,11 @@ func MinimalCollectionProfileOperator(ctx context.Context, dc *dynamic.DynamicCl
 			expr, err := parser.ParseExpr(q)
 			if err != nil {
 				klog.Errorf("failed to parse query %q: %v", q, err)
+
 				continue
 			}
 			parser.Inspect(expr, func(node parser.Node, path []parser.Node) error {
-				switch n := node.(type) {
-				case *parser.VectorSelector:
+				if n, ok := node.(*parser.VectorSelector); ok {
 					// Throw if:
 					//  * a metric is present one of the rule files, and,
 					//  * it is not loaded...
@@ -85,7 +86,7 @@ func MinimalCollectionProfileOperator(ctx context.Context, dc *dynamic.DynamicCl
 						klog.Warningf("from source: %s under group: %s", group.File, group.Name)
 						klog.Warningf("affecting rule: %s with query: %s", ruleName, q)
 						for regex := range regexps {
-							match, err := regexp.Match(regex, []byte(n.Name))
+							match, err := regexp.MatchString(regex, n.Name)
 							if err != nil {
 								klog.Errorf("failed to match regex %q: %v", regex, err)
 							}
@@ -96,9 +97,11 @@ func MinimalCollectionProfileOperator(ctx context.Context, dc *dynamic.DynamicCl
 						}
 					}
 				}
+
 				return nil
 			})
 		}
 	}
+
 	return nil
 }

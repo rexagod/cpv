@@ -3,6 +3,10 @@ package profiles
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/model/rulefmt"
 	"github.com/prometheus/prometheus/promql/parser"
@@ -10,9 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 func GuessMinimalProfile(ctx context.Context, dc *dynamic.DynamicClient, c *client.Client, parameters ...interface{}) error {
@@ -24,18 +25,18 @@ func GuessMinimalProfile(ctx context.Context, dc *dynamic.DynamicClient, c *clie
 	// Check if rule file exists.
 	ruleFile, err := filepath.Abs(filepath.Clean(maybePathOrTargets))
 	if err != nil {
-		return fmt.Errorf("failed to get absolute path of rule file: %v", err)
+		return fmt.Errorf("failed to get absolute path of rule file: %w", err)
 	}
 	if _, err := os.Stat(ruleFile); !os.IsNotExist(err) {
 		// Extract metrics from rule file.
 		err := extractMetricsFromRuleFile(ruleFile)
 		if err != nil {
-			return fmt.Errorf("failed to extract metrics from rule file: %v", err)
+			return fmt.Errorf("failed to extract metrics from rule file: %w", err)
 		}
 	} else {
 		// Guess the metrics needed to implement minimal collection profile.
 		if err := guessMinimalProfileFromTargets(ctx, c, maybePathOrTargets); err != nil {
-			return fmt.Errorf("failed to guess minimal profile from targets: %v", err)
+			return fmt.Errorf("failed to guess minimal profile from targets: %w", err)
 		}
 	}
 
@@ -52,14 +53,14 @@ func extractMetricsFromRuleFile(ruleFile string) error {
 		for _, rule := range group.Rules {
 			expr, err := parser.ParseExpr(rule.Expr.Value)
 			if err != nil {
-				return fmt.Errorf("failed to parse targets: %v", err)
+				return fmt.Errorf("failed to parse targets: %w", err)
 			}
 			parser.Inspect(expr, func(node parser.Node, path []parser.Node) error {
-				switch n := node.(type) {
-				case *parser.VectorSelector:
+				if n, ok := node.(*parser.VectorSelector); ok {
 					metric := n.Name
 					metrics.Insert(metric)
 				}
+
 				return nil
 			})
 		}
@@ -72,12 +73,11 @@ func extractMetricsFromRuleFile(ruleFile string) error {
 func guessMinimalProfileFromTargets(ctx context.Context, c *client.Client, targets string) error {
 	expr, err := parser.ParseExpr(targets)
 	if err != nil {
-		return fmt.Errorf("failed to parse targets: %v", err)
+		return fmt.Errorf("failed to parse targets: %w", err)
 	}
 	didEncounterUnexpectedMatchType := false
 	parser.Inspect(expr, func(node parser.Node, path []parser.Node) error {
-		switch n := node.(type) {
-		case *parser.VectorSelector:
+		if n, ok := node.(*parser.VectorSelector); ok {
 			for _, lm := range n.LabelMatchers {
 				if lm.Type != labels.MatchEqual {
 					// Errors are not returned so that the traversal is not interrupted.
@@ -85,10 +85,12 @@ func guessMinimalProfileFromTargets(ctx context.Context, c *client.Client, targe
 					klog.Errorf("unexpected match type: %s", lm.Type)
 					didEncounterUnexpectedMatchType = true
 					// Stop traversing the AST.
+					//nolint:wrapcheck
 					return err
 				}
 			}
 		}
+
 		return nil
 	})
 	if didEncounterUnexpectedMatchType {
@@ -96,7 +98,7 @@ func guessMinimalProfileFromTargets(ctx context.Context, c *client.Client, targe
 	}
 	targetsMetadata, err := c.API.TargetsMetadata(ctx, targets, "", "")
 	if err != nil {
-		return fmt.Errorf("failed to fetch targets metadata: %v", err)
+		return fmt.Errorf("failed to fetch targets metadata: %w", err)
 	}
 	var metrics sets.Set[string]
 	for _, data := range targetsMetadata {

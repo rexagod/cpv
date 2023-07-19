@@ -2,6 +2,8 @@ package profiles
 
 import (
 	"context"
+	"fmt"
+
 	"github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,13 +26,14 @@ func fetchServiceMonitorsForProfile(ctx context.Context, dc *dynamic.DynamicClie
 		LabelSelector: labelSelector,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list servicemonitors: %w", err)
 	}
 	var serviceMonitors *monitoringv1.ServiceMonitorList
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(l.UnstructuredContent(), &serviceMonitors)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to convert unstructured to servicemonitor: %w", err)
 	}
+
 	return serviceMonitors, nil
 }
 
@@ -47,13 +50,14 @@ func fetchPodMonitorsForProfile(ctx context.Context, dc *dynamic.DynamicClient, 
 		LabelSelector: labelSelector,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to list podmonitors: %w", err)
 	}
 	var podMonitors *monitoringv1.PodMonitorList
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(l.UnstructuredContent(), &podMonitors)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to convert unstructured to podmonitor: %w", err)
 	}
+
 	return podMonitors, nil
 }
 
@@ -68,6 +72,7 @@ func fetchMonitorsForProfile(ctx context.Context, dc *dynamic.DynamicClient, pro
 	if err != nil {
 		return nil, nil, err
 	}
+
 	return podMonitors, serviceMonitors, nil
 }
 
@@ -82,6 +87,7 @@ func extractMetricsExpressionsFromServiceMonitor(serviceMonitor *monitoringv1.Se
 			}
 		}
 	}
+
 	return metricsExpressions
 }
 
@@ -96,5 +102,6 @@ func extractMetricsExpressionsFromPodMonitor(podMonitor *monitoringv1.PodMonitor
 			}
 		}
 	}
+
 	return metricsExpressions
 }

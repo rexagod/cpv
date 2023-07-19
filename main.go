@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"flag"
+	"os"
+	"time"
+
 	"github.com/rexagod/cpv/internal/client"
 	"github.com/rexagod/cpv/internal/profiles"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
-	"os"
-	"time"
 )
 
 func main() {

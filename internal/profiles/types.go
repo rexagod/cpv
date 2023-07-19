@@ -1,7 +1,9 @@
 package profiles
 
-type CollectionProfile string
-type CollectionProfiles []CollectionProfile
+type (
+	CollectionProfile  string
+	CollectionProfiles []CollectionProfile
+)
 
 const (
 	CollectionProfileOptInLabel                   = "monitoring.openshift.io/collection-profile"
@@ -9,8 +11,10 @@ const (
 	MinimalCollectionProfile    CollectionProfile = "minimal"
 )
 
-var SupportedCollectionProfiles = CollectionProfiles{FullCollectionProfile, MinimalCollectionProfile}
-var SupportedNonDefaultCollectionProfiles = SupportedCollectionProfiles[1:]
+var (
+	SupportedCollectionProfiles           = CollectionProfiles{FullCollectionProfile, MinimalCollectionProfile}
+	SupportedNonDefaultCollectionProfiles = SupportedCollectionProfiles[1:]
+)
 
 func IsSupportedCollectionProfile(profile CollectionProfile) bool {
 	for _, p := range SupportedCollectionProfiles {
@@ -18,5 +22,6 @@ func IsSupportedCollectionProfile(profile CollectionProfile) bool {
 			return true
 		}
 	}
+
 	return false
 }
