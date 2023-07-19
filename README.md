@@ -11,16 +11,18 @@ OpenShift to adopt the [Scrape Profiles] enhancement and help diversify their mo
 `cpv` expects the following set of flags.
 
 ```bash
-$ ./cpv -h               
+$ ./cpv -h     
 Usage of ./cpv:
   -address string
         Address of the Prometheus instance. (default "http://localhost:9090")
   -bearer-token string
         Bearer token for authentication.
+  -impl-stats
+        Report collection profiles implementation status.
   -kubeconfigPath string
         Path to kubeconfig file. (default "$KUBECONFIG")
   -profile string
-        Collection profile to run the validation against. (default "full" (this is a no-op))
+        Collection profile to run the validation against.
 ```
 
 ## License

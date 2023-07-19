@@ -12,12 +12,16 @@ import (
 )
 
 func fetchServiceMonitorsForProfile(ctx context.Context, dc *dynamic.DynamicClient, profile CollectionProfile) (*monitoringv1.ServiceMonitorList, error) {
+	labelSelector := CollectionProfileOptInLabel
+	if profile != "" {
+		labelSelector = labelSelector + "=" + string(profile)
+	}
 	l, err := dc.Resource(schema.GroupVersionResource{
 		Group:    monitoring.GroupName,
 		Version:  monitoringv1.Version,
 		Resource: monitoringv1.ServiceMonitorName,
 	}).List(ctx, metav1.ListOptions{
-		LabelSelector: "monitoring.openshift.io/collection-profile=" + string(profile),
+		LabelSelector: labelSelector,
 	})
 	if err != nil {
 		return nil, err
@@ -31,12 +35,16 @@ func fetchServiceMonitorsForProfile(ctx context.Context, dc *dynamic.DynamicClie
 }
 
 func fetchPodMonitorsForProfile(ctx context.Context, dc *dynamic.DynamicClient, profile CollectionProfile) (*monitoringv1.PodMonitorList, error) {
+	labelSelector := CollectionProfileOptInLabel
+	if profile != "" {
+		labelSelector = labelSelector + "=" + string(profile)
+	}
 	l, err := dc.Resource(schema.GroupVersionResource{
 		Group:    monitoring.GroupName,
 		Version:  monitoringv1.Version,
 		Resource: monitoringv1.PodMonitorName,
 	}).List(ctx, metav1.ListOptions{
-		LabelSelector: "monitoring.openshift.io/collection-profile=" + string(profile),
+		LabelSelector: labelSelector,
 	})
 	if err != nil {
 		return nil, err
@@ -49,6 +57,8 @@ func fetchPodMonitorsForProfile(ctx context.Context, dc *dynamic.DynamicClient, 
 	return podMonitors, nil
 }
 
+// fetchMonitorsForProfile returns pod and service monitors that implement the specified profile, leave it out to get
+// monitors for all profiles.
 func fetchMonitorsForProfile(ctx context.Context, dc *dynamic.DynamicClient, profile CollectionProfile) (*monitoringv1.PodMonitorList, *monitoringv1.ServiceMonitorList, error) {
 	podMonitors, err := fetchPodMonitorsForProfile(ctx, dc, profile)
 	if err != nil {
