@@ -7,16 +7,24 @@ import (
 	"path/filepath"
 	"strings"
 
+	v1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/model/rulefmt"
 	"github.com/prometheus/prometheus/promql/parser"
-	"github.com/rexagod/cpv/internal/client"
+	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
+
+	"github.com/rexagod/cpv/internal/client"
 )
 
-func GuessMinimalProfile(ctx context.Context, dc *dynamic.DynamicClient, c *client.Client, parameters ...interface{}) error {
+func GuessMinimalProfile(
+	ctx context.Context,
+	dc *dynamic.DynamicClient,
+	c *client.Client,
+	parameters ...interface{},
+) error {
 	maybePathOrTargets, ok := parameters[0].(string)
 	if !ok {
 		return fmt.Errorf("expected a string, got: %v", parameters[0])
@@ -55,17 +63,19 @@ func extractMetricsFromRuleFile(ruleFile string) error {
 			if err != nil {
 				return fmt.Errorf("failed to parse targets: %w", err)
 			}
-			parser.Inspect(expr, func(node parser.Node, path []parser.Node) error {
-				if n, ok := node.(*parser.VectorSelector); ok {
-					metric := n.Name
-					metrics.Insert(metric)
-				}
+			parser.Inspect(
+				expr, func(node parser.Node, path []parser.Node) error {
+					if n, ok := node.(*parser.VectorSelector); ok {
+						metric := n.Name
+						metrics.Insert(metric)
+					}
 
-				return nil
-			})
+					return nil
+				},
+			)
 		}
 	}
-	fmt.Printf("Metrics collected based on the rule file: %s are: %s\n", ruleFile, strings.Join(metrics.UnsortedList(), "|"))
+	fmt.Printf(toRelabelConfig(fmt.Sprintf("(%s)", strings.Join(metrics.UnsortedList(), "|"))))
 
 	return nil
 }
@@ -76,23 +86,25 @@ func guessMinimalProfileFromTargets(ctx context.Context, c *client.Client, targe
 		return fmt.Errorf("failed to parse targets: %w", err)
 	}
 	didEncounterUnexpectedMatchType := false
-	parser.Inspect(expr, func(node parser.Node, path []parser.Node) error {
-		if n, ok := node.(*parser.VectorSelector); ok {
-			for _, lm := range n.LabelMatchers {
-				if lm.Type != labels.MatchEqual {
-					// Errors are not returned so that the traversal is not interrupted.
-					// Refer: https://github.com/prometheus/prometheus/blob/main/promql/parser/ast.go#L351.
-					klog.Errorf("unexpected match type: %s", lm.Type)
-					didEncounterUnexpectedMatchType = true
-					// Stop traversing the AST.
-					//nolint:wrapcheck
-					return err
+	parser.Inspect(
+		expr, func(node parser.Node, path []parser.Node) error {
+			if n, ok := node.(*parser.VectorSelector); ok {
+				for _, lm := range n.LabelMatchers {
+					if lm.Type != labels.MatchEqual {
+						// Errors are not returned so that the traversal is not interrupted.
+						// Refer: https://github.com/prometheus/prometheus/blob/main/promql/parser/ast.go#L351.
+						klog.Errorf("unexpected match type: %s", lm.Type)
+						didEncounterUnexpectedMatchType = true
+						// Stop traversing the AST.
+						//nolint:wrapcheck
+						return err
+					}
 				}
 			}
-		}
 
-		return nil
-	})
+			return nil
+		},
+	)
 	if didEncounterUnexpectedMatchType {
 		return fmt.Errorf("unexpected match type encountered, supported match types are: %s", labels.MatchEqual)
 	}
@@ -105,7 +117,20 @@ func guessMinimalProfileFromTargets(ctx context.Context, c *client.Client, targe
 		m := data.Metric
 		metrics.Insert(m)
 	}
-	fmt.Printf("Metrics collected based on the contraints: %s are: %s\n", targets, strings.Join(metrics.UnsortedList(), "|"))
+	fmt.Printf(toRelabelConfig(fmt.Sprintf("(%s)", strings.Join(metrics.UnsortedList(), "|"))))
 
 	return nil
+}
+
+func toRelabelConfig(metricsRegex string) string {
+	relabelConfig := v1.RelabelConfig{
+		SourceLabels: []v1.LabelName{"__name__"},
+		Regex:        metricsRegex,
+		Action:       "keep",
+	}
+	relabelConfigBytes, err := yaml.Marshal(relabelConfig)
+	if err != nil {
+		klog.Fatalf("failed to marshal relabel config: %v", err)
+	}
+	return string(relabelConfigBytes)
 }
