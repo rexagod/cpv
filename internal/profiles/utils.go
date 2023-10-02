@@ -14,19 +14,27 @@ import (
 	"sync"
 )
 
-const DefaultErr = "not loaded"
+const (
+	ErrImplemented  = "not implemented"
+	ErrLoaded       = "not loaded"
+	ErrNonNilIssues = "encountered %d issues, refer: %s"
+)
 
 type Recorder struct {
-	file *os.File
-	m    sync.Mutex
-	i    uint
+	file                 *os.File
+	m                    sync.Mutex
+	loadIssues           *uint
+	implementationIssues *uint
 }
 
 func (r *Recorder) Write(p []byte) (n int, err error) {
 	r.m.Lock()
 	defer r.m.Unlock()
-	if strings.Contains(string(p), DefaultErr) {
-		r.i++
+	if r.loadIssues != nil && strings.Contains(string(p), ErrLoaded) {
+		*r.loadIssues++
+	}
+	if r.implementationIssues != nil && strings.Contains(string(p), ErrImplemented) {
+		*r.implementationIssues++
 	}
 	return r.file.Write(p)
 }

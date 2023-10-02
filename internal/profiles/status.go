@@ -3,9 +3,12 @@ package profiles
 import (
 	"context"
 	"fmt"
-
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/klog/v2"
+	"os"
+	"text/tabwriter"
+	"time"
 )
 
 // ReportImplementationStatus reports the implementation status w.r.t. all supported collection profiles, and points out
@@ -29,6 +32,19 @@ func ReportImplementationStatus(ctx context.Context, dc *dynamic.DynamicClient) 
 		}
 	}
 
+	// Write the implementation status to a file.
+	file, err := os.Create("/tmp/" + fmt.Sprintf("implementation-status-%s-recoder.txt", time.Now().Format("2006-01-02T15:04:05")))
+	if err != nil {
+		return fmt.Errorf("failed to create recorder: %w", err)
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+	recorder := &Recorder{file: file, implementationIssues: new(uint)}
+	w := tabwriter.NewWriter(recorder, 0, 0, 2, ' ', 0)
+	columns := fmt.Sprintf("PROFILE\tSERVICE MONITOR\tPOD MONITOR\tERROR")
+	_, _ = fmt.Fprintln(w, columns)
+
 	// We assume that the default profile is always implemented.
 	defaultProfileServiceMonitorsSet := mServiceMonitors[FullCollectionProfile]
 	for serviceMonitor := range defaultProfileServiceMonitorsSet {
@@ -36,7 +52,7 @@ func ReportImplementationStatus(ctx context.Context, dc *dynamic.DynamicClient) 
 			// We assume monitors will adhere to a naming standard as defined in the original implementation.
 			// Refer: https://github.com/openshift/cluster-monitoring-operator/pull/1785/files#diff-229e84547c808580dd069005f5467c35c491380b90690771b1f1d44454067e02R10.
 			if !mServiceMonitors[profile].Has(serviceMonitor + "-" + string(profile)) {
-				fmt.Printf("Service monitor %s is not implemented for profile %s\n", serviceMonitor, profile)
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", profile, serviceMonitor, "", ErrImplemented)
 			}
 		}
 	}
@@ -48,9 +64,17 @@ func ReportImplementationStatus(ctx context.Context, dc *dynamic.DynamicClient) 
 			// We assume monitors will adhere to a naming standard as defined in the original implementation.
 			// Refer: https://github.com/openshift/cluster-monitoring-operator/pull/1785/files#diff-229e84547c808580dd069005f5467c35c491380b90690771b1f1d44454067e02R10.
 			if !mPodMonitors[profile].Has(podMonitor + "-" + string(profile)) {
-				fmt.Printf("Pod monitor %s is not implemented for profile %s\n", podMonitor, profile)
+				_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", profile, "", podMonitor, ErrImplemented)
 			}
 		}
+	}
+
+	_ = w.Flush()
+	// Delete the file if there are no implementation issues.
+	if *recorder.implementationIssues > 0 {
+		klog.Errorf(ErrNonNilIssues, *recorder.implementationIssues, file.Name())
+	} else {
+		_ = os.Remove(file.Name())
 	}
 
 	return nil

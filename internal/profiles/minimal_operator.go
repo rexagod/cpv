@@ -55,22 +55,20 @@ func (o *minimalProfileOperator) Operator(ctx context.Context, dc *dynamic.Dynam
 		regexps[podmonitor.Name] = expr
 	}
 
-	// Check if the metrics in the rules are loaded. If not, check if they match any of the regexps. If they do, then we
-	// have a direct correlation between a rule using a metric that is defined by a profile-specific monitor. This
-	// essentially means that the associated profile does not have all the required metrics available at this point of
-	// time.
 	file, err := os.Create("/tmp/" + fmt.Sprintf("%s-profile-%s-recorder.txt", profile, time.Now().Format("2006-01-02T15:04:05")))
 	if err != nil {
 		return fmt.Errorf("failed to create recorder: %w", err)
 	}
 	defer func() {
-		err = file.Close()
-		if err != nil {
-			klog.Errorf("failed to close recorder: %v", err)
-		}
+		_ = file.Close()
 	}()
-	recorder := &Recorder{file: file}
+	recorder := &Recorder{file: file, loadIssues: new(uint)}
 	w := tabwriter.NewWriter(recorder, 0, 0, 2, ' ', 0)
+
+	// Check if the metrics in the rules are loaded. If not, check if they match any of the regexps. If they do, then we
+	// have a direct correlation between a rule using a metric that is defined by a profile-specific monitor. This
+	// essentially means that the associated profile does not have all the required metrics available at this point of
+	// time.
 	columns := fmt.Sprintf("%s MONITOR\tGROUP\tLOCATION\tRULE\tQUERY\tMETRIC\tERROR", strings.ToUpper(string(profile)))
 	_, _ = fmt.Fprintln(w, columns)
 	for _, group := range rules.Groups {
@@ -110,7 +108,7 @@ func (o *minimalProfileOperator) Operator(ctx context.Context, dc *dynamic.Dynam
 							}
 							// * ...while a profile depends on it.
 							if match {
-								_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", monitor, group.Name, group.File, ruleName, q, n.Name, DefaultErr)
+								_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n", monitor, group.Name, group.File, ruleName, q, n.Name, ErrLoaded)
 							}
 						}
 					}
@@ -123,9 +121,12 @@ func (o *minimalProfileOperator) Operator(ctx context.Context, dc *dynamic.Dynam
 			})
 		}
 	}
+
 	_ = w.Flush()
-	if recorder.i > 0 {
-		klog.Errorf("encountered issues with %d out of %d scraped metrics, refer: %s", recorder.i, len(metrics), file.Name())
+	if *recorder.loadIssues > 0 {
+		klog.Errorf(ErrNonNilIssues, *recorder.loadIssues, file.Name())
+	} else {
+		_ = os.Remove(file.Name())
 	}
 
 	return nil
