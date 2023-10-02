@@ -8,7 +8,6 @@ import (
 	"k8s.io/klog/v2"
 	"os"
 	"text/tabwriter"
-	"time"
 )
 
 // ReportImplementationStatus reports the implementation status w.r.t. all supported collection profiles, and points out
@@ -33,7 +32,7 @@ func ReportImplementationStatus(ctx context.Context, dc *dynamic.DynamicClient) 
 	}
 
 	// Write the implementation status to a file.
-	file, err := os.Create("/tmp/" + fmt.Sprintf("implementation-status-%s-recoder.txt", time.Now().Format("2006-01-02T15:04:05")))
+	file, err := os.CreateTemp("/tmp", "implementation-status-*.log")
 	if err != nil {
 		return fmt.Errorf("failed to create recorder: %w", err)
 	}

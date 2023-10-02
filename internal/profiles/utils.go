@@ -3,15 +3,16 @@ package profiles
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
+	"sync"
+
 	"github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
-	"os"
-	"strings"
-	"sync"
 )
 
 const (
@@ -36,6 +37,8 @@ func (r *Recorder) Write(p []byte) (n int, err error) {
 	if r.implementationIssues != nil && strings.Contains(string(p), ErrImplemented) {
 		*r.implementationIssues++
 	}
+
+	// nolint:wrapcheck
 	return r.file.Write(p)
 }
 

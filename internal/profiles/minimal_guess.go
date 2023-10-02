@@ -11,12 +11,11 @@ import (
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/model/rulefmt"
 	"github.com/prometheus/prometheus/promql/parser"
+	"github.com/rexagod/cpv/internal/client"
 	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
-
-	"github.com/rexagod/cpv/internal/client"
 )
 
 type minimalProfileGuesser struct{}
@@ -77,7 +76,7 @@ func extractMetricsFromRuleFile(ruleFile string) error {
 			)
 		}
 	}
-	fmt.Printf(toRelabelConfig(fmt.Sprintf("(%s)", strings.Join(metrics.UnsortedList(), "|"))))
+	fmt.Print(toRelabelConfig(fmt.Sprintf("(%s)", strings.Join(metrics.UnsortedList(), "|"))))
 
 	return nil
 }
@@ -120,7 +119,7 @@ func guessMinimalProfileFromTargets(ctx context.Context, c *client.Client, targe
 		m := data.Metric
 		metrics.Insert(m)
 	}
-	fmt.Printf(toRelabelConfig(fmt.Sprintf("(%s)", strings.Join(metrics.UnsortedList(), "|"))))
+	fmt.Print(toRelabelConfig(fmt.Sprintf("(%s)", strings.Join(metrics.UnsortedList(), "|"))))
 
 	return nil
 }
@@ -135,5 +134,6 @@ func toRelabelConfig(metricsRegex string) string {
 	if err != nil {
 		klog.Fatalf("failed to marshal relabel config: %v", err)
 	}
+
 	return string(relabelConfigBytes)
 }

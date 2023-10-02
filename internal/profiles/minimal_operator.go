@@ -13,7 +13,6 @@ import (
 	"regexp"
 	"strings"
 	"text/tabwriter"
-	"time"
 )
 
 type minimalProfileOperator struct{}
@@ -55,7 +54,7 @@ func (o *minimalProfileOperator) Operator(ctx context.Context, dc *dynamic.Dynam
 		regexps[podmonitor.Name] = expr
 	}
 
-	file, err := os.Create("/tmp/" + fmt.Sprintf("%s-profile-%s-recorder.txt", profile, time.Now().Format("2006-01-02T15:04:05")))
+	file, err := os.CreateTemp("/tmp", fmt.Sprintf("%s-profile-*.log", profile))
 	if err != nil {
 		return fmt.Errorf("failed to create recorder: %w", err)
 	}
