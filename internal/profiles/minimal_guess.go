@@ -19,7 +19,9 @@ import (
 	"github.com/rexagod/cpv/internal/client"
 )
 
-func GuessMinimalProfile(
+type minimalProfileGuesser struct{}
+
+func (g *minimalProfileGuesser) Guess(
 	ctx context.Context,
 	dc *dynamic.DynamicClient,
 	c *client.Client,
@@ -56,7 +58,7 @@ func extractMetricsFromRuleFile(ruleFile string) error {
 	if err != nil {
 		return fmt.Errorf("failed to parse rule file: %v", err)
 	}
-	var metrics sets.Set[string]
+	metrics := sets.Set[string]{}
 	for _, group := range ruleGroups.Groups {
 		for _, rule := range group.Rules {
 			expr, err := parser.ParseExpr(rule.Expr.Value)
@@ -90,6 +92,7 @@ func guessMinimalProfileFromTargets(ctx context.Context, c *client.Client, targe
 		expr, func(node parser.Node, path []parser.Node) error {
 			if n, ok := node.(*parser.VectorSelector); ok {
 				for _, lm := range n.LabelMatchers {
+					// Only key*=*value matchers are supported.
 					if lm.Type != labels.MatchEqual {
 						// Errors are not returned so that the traversal is not interrupted.
 						// Refer: https://github.com/prometheus/prometheus/blob/main/promql/parser/ast.go#L351.
@@ -112,7 +115,7 @@ func guessMinimalProfileFromTargets(ctx context.Context, c *client.Client, targe
 	if err != nil {
 		return fmt.Errorf("failed to fetch targets metadata: %w", err)
 	}
-	var metrics sets.Set[string]
+	metrics := sets.Set[string]{}
 	for _, data := range targetsMetadata {
 		m := data.Metric
 		metrics.Insert(m)

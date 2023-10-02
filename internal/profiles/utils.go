@@ -3,15 +3,33 @@ package profiles
 import (
 	"context"
 	"fmt"
-
 	"github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
+	"os"
+	"strings"
+	"sync"
 )
+
+const DefaultErr = "not loaded"
+
+type Recorder struct {
+	file *os.File
+	m    sync.Mutex
+	i    uint
+}
+
+func (r *Recorder) Write(p []byte) (n int, err error) {
+	r.m.Lock()
+	defer r.m.Unlock()
+	if strings.Contains(string(p), DefaultErr) {
+		r.i++
+	}
+	return r.file.Write(p)
+}
 
 func fetchServiceMonitorsForProfile(ctx context.Context, dc *dynamic.DynamicClient, profile CollectionProfile) (*monitoringv1.ServiceMonitorList, error) {
 	labelSelector := CollectionProfileOptInLabel
@@ -76,32 +94,38 @@ func fetchMonitorsForProfile(ctx context.Context, dc *dynamic.DynamicClient, pro
 	return podMonitors, serviceMonitors, nil
 }
 
-func extractMetricsExpressionsFromServiceMonitor(serviceMonitor *monitoringv1.ServiceMonitor) sets.Set[string] {
-	var metricsExpressions sets.Set[string]
+func extractMetricsExpressionsFromServiceMonitor(serviceMonitor *monitoringv1.ServiceMonitor) string {
+	var metricsExpressions []string
 	for _, endpoint := range serviceMonitor.Spec.Endpoints {
 		for _, metricRelabelConfig := range endpoint.MetricRelabelConfigs {
 			action := metricRelabelConfig.Action
 			sourceLabels := metricRelabelConfig.SourceLabels
 			if action == "keep" && len(sourceLabels) == 1 && sourceLabels[0] == "__name__" {
-				metricsExpressions.Insert(metricRelabelConfig.Regex)
+				regex := metricRelabelConfig.Regex
+				regex, _ = strings.CutPrefix(regex, "(")
+				regex, _ = strings.CutSuffix(regex, ")")
+				metricsExpressions = append(metricsExpressions, regex)
 			}
 		}
 	}
 
-	return metricsExpressions
+	return strings.Join(metricsExpressions, "|")
 }
 
-func extractMetricsExpressionsFromPodMonitor(podMonitor *monitoringv1.PodMonitor) sets.Set[string] {
-	var metricsExpressions sets.Set[string]
+func extractMetricsExpressionsFromPodMonitor(podMonitor *monitoringv1.PodMonitor) string {
+	var metricsExpressions []string
 	for _, endpoint := range podMonitor.Spec.PodMetricsEndpoints {
 		for _, metricRelabelConfig := range endpoint.MetricRelabelConfigs {
 			action := metricRelabelConfig.Action
 			sourceLabels := metricRelabelConfig.SourceLabels
 			if action == "keep" && len(sourceLabels) == 1 && sourceLabels[0] == "__name__" {
-				metricsExpressions.Insert(metricRelabelConfig.Regex)
+				regex := metricRelabelConfig.Regex
+				regex, _ = strings.CutPrefix(regex, "(")
+				regex, _ = strings.CutSuffix(regex, ")")
+				metricsExpressions = append(metricsExpressions, regex)
 			}
 		}
 	}
 
-	return metricsExpressions
+	return strings.Join(metricsExpressions, "|")
 }

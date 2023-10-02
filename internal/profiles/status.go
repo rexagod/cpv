@@ -17,8 +17,6 @@ func ReportImplementationStatus(ctx context.Context, dc *dynamic.DynamicClient) 
 	mPodMonitors := make(map[CollectionProfile]sets.Set[string])
 	for _, profile := range SupportedCollectionProfiles {
 		mServiceMonitors[profile] = sets.Set[string]{}
-	}
-	for _, profile := range SupportedCollectionProfiles {
 		podMonitors, serviceMonitors, err := fetchMonitorsForProfile(ctx, dc, profile)
 		if err != nil {
 			return fmt.Errorf("failed to fetch service monitors for profile %s: %w", profile, err)

@@ -11,6 +11,13 @@ import (
 	"github.com/prometheus/common/model"
 )
 
+type Client struct {
+	ctx         context.Context
+	address     string
+	bearerToken string
+	v1.API
+}
+
 func NewClient(ctx context.Context, address, bearerToken string) *Client {
 	return &Client{
 		ctx:         ctx,
