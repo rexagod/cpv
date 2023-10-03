@@ -22,23 +22,23 @@ func main() {
 
 	// Initialize and validate flags.
 	var (
-		bearerToken       string
-		address           string
-		kubeconfigPath    string
-		profile           string
-		status            bool
-		guessProfile      string
-		guessProfileParam string
+		bearerToken            string
+		address                string
+		kubeconfigPath         string
+		profile                string
+		status                 bool
+		extractForProfile      string
+		extractForProfileParam string
 	)
 	flag.StringVar(&bearerToken, "bearer-token", "", "Bearer token for authentication.")
 	flag.StringVar(&address, "address", "http://localhost:9090", "Address of the Prometheus instance.")
 	flag.StringVar(&kubeconfigPath, "kubeconfig", os.Getenv("KUBECONFIG"), "Path to kubeconfig file.")
 	flag.StringVar(&profile, "profile", "", "Collection profile to run the validation against.")
 	flag.BoolVar(&status, "status", false, "Report collection profiles implementation status.")
-	flag.StringVar(&guessProfile, "guess-profile", "", "Guess the metrics needed to implement the given collection profile.")
+	flag.StringVar(&extractForProfile, "extract-for-profile", "", "Extract the metrics needed to implement the given collection profile.")
 
 	// Specifying targets: https://github.com/prometheus/client_golang/blob/644c80d1360fb1409a3fe8dfc5bad4228f282f3b/api/prometheus/v1/api_test.go#L1007
-	flag.StringVar(&guessProfileParam, "guess-profile-param", "", "Path to rule file, or targets to be used to guess the metrics needed to implement the --guess-profile.")
+	flag.StringVar(&extractForProfileParam, "extract-for-profile-param", "", "Path to rule file, or targets to be used to extract the metrics needed to implement the --extract-for-profile.")
 	flag.Parse()
 	if len(bearerToken) == 0 {
 		klog.Fatal("Bearer token must be set")
@@ -80,16 +80,16 @@ func main() {
 		}
 	}
 
-	// Call profile-specific guesser to guess the metrics needed to implement the respective profile.
-	if guessProfile != "" {
-		if guessProfileParam == "" {
-			klog.Fatal("guess-profile-param must be set when using --guess-profile")
+	// Call profile-specific extractor to extract the metrics needed to implement the respective profile.
+	if extractForProfile != "" {
+		if extractForProfileParam == "" {
+			klog.Fatal("extract-for-profile-param must be set when using --extract-for-profile")
 		}
-		guessProfile := profiles.CollectionProfile(guessProfile)
-		if !profiles.IsSupportedCollectionProfile(guessProfile) {
-			klog.Fatalf(invalidProfileErr, guessProfile)
+		extractProfile := profiles.CollectionProfile(extractForProfile)
+		if !profiles.IsSupportedCollectionProfile(extractProfile) {
+			klog.Fatalf(invalidProfileErr, extractProfile)
 		}
-		err = profiles.ProfileGuessers[guessProfile].Guess(ctx, dc, c, guessProfileParam)
+		err = profiles.ProfileExtractors[extractProfile].Extract(ctx, dc, c, extractForProfileParam)
 		if err != nil {
 			klog.Error(err)
 		}

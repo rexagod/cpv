@@ -18,14 +18,16 @@ import (
 	"k8s.io/klog/v2"
 )
 
-type minimalProfileGuesser struct{}
+type minimalProfileExtractor struct{}
 
-func (g *minimalProfileGuesser) Guess(
+func (g *minimalProfileExtractor) Extract(
 	ctx context.Context,
 	dc *dynamic.DynamicClient,
 	c *client.Client,
 	parameters ...interface{},
 ) error {
+	profile := MinimalCollectionProfile
+
 	maybePathOrTargets, ok := parameters[0].(string)
 	if !ok {
 		return fmt.Errorf("expected a string, got: %v", parameters[0])
@@ -37,15 +39,17 @@ func (g *minimalProfileGuesser) Guess(
 		return fmt.Errorf("failed to get absolute path of rule file: %w", err)
 	}
 	if _, err := os.Stat(ruleFile); !os.IsNotExist(err) {
+
 		// Extract metrics from rule file.
 		err := extractMetricsFromRuleFile(ruleFile)
 		if err != nil {
 			return fmt.Errorf("failed to extract metrics from rule file: %w", err)
 		}
 	} else {
-		// Guess the metrics needed to implement minimal collection profile.
-		if err := guessMinimalProfileFromTargets(ctx, c, maybePathOrTargets); err != nil {
-			return fmt.Errorf("failed to guess minimal profile from targets: %w", err)
+
+		// Extract the metrics needed to implement minimal collection profile.
+		if err := extractMinimalProfileFromTargets(ctx, c, maybePathOrTargets); err != nil {
+			return fmt.Errorf("failed to extract %s profile from targets: %w", profile, err)
 		}
 	}
 
@@ -81,7 +85,7 @@ func extractMetricsFromRuleFile(ruleFile string) error {
 	return nil
 }
 
-func guessMinimalProfileFromTargets(ctx context.Context, c *client.Client, targets string) error {
+func extractMinimalProfileFromTargets(ctx context.Context, c *client.Client, targets string) error {
 	expr, err := parser.ParseExpr(targets)
 	if err != nil {
 		return fmt.Errorf("failed to parse targets: %w", err)
@@ -91,12 +95,15 @@ func guessMinimalProfileFromTargets(ctx context.Context, c *client.Client, targe
 		expr, func(node parser.Node, path []parser.Node) error {
 			if n, ok := node.(*parser.VectorSelector); ok {
 				for _, lm := range n.LabelMatchers {
+
 					// Only key*=*value matchers are supported.
 					if lm.Type != labels.MatchEqual {
+
 						// Errors are not returned so that the traversal is not interrupted.
 						// Refer: https://github.com/prometheus/prometheus/blob/main/promql/parser/ast.go#L351.
 						klog.Errorf("unexpected match type: %s", lm.Type)
 						didEncounterUnexpectedMatchType = true
+
 						// Stop traversing the AST.
 						//nolint:wrapcheck
 						return err

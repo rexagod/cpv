@@ -19,6 +19,7 @@ type operator interface {
 // ProfileOperators is a map of all the profile operators.
 var ProfileOperators = map[CollectionProfile]operator{
 	FullCollectionProfile: nil,
+
 	// A minimal collection profile is a collection profile that only collects metrics necessary for:
 	//  * alerts,
 	//  * dashboards,
@@ -27,9 +28,9 @@ var ProfileOperators = map[CollectionProfile]operator{
 	MinimalCollectionProfile: &minimalProfileOperator{},
 }
 
-// guesser is an interface that defines the Guess method, which must be implemented by all profile guessers.
-type guesser interface {
-	Guess(
+// extractor is an interface that defines the Extract method, which must be implemented by all profile extractors.
+type extractor interface {
+	Extract(
 		context.Context,
 		*dynamic.DynamicClient,
 		*client.Client,
@@ -37,10 +38,11 @@ type guesser interface {
 	) error
 }
 
-// ProfileGuessers is a map of all the profile guessers.
-var ProfileGuessers = map[CollectionProfile]guesser{
+// ProfileExtractors is a map of all the profile extractor.
+var ProfileExtractors = map[CollectionProfile]extractor{
 	FullCollectionProfile: nil,
-	// A minimal collection profile Guesser estimates the metrics needed to implement minimal collection profile from a
+
+	// A minimal collection profile Extractor estimates the metrics needed to implement minimal collection profile from a
 	// given set of constraints (targets).
-	MinimalCollectionProfile: &minimalProfileGuesser{},
+	MinimalCollectionProfile: &minimalProfileExtractor{},
 }
