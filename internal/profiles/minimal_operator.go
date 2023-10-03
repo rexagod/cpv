@@ -3,27 +3,26 @@ package profiles
 import (
 	"context"
 	"fmt"
+	"os"
+	"regexp"
+	"strings"
+	"text/tabwriter"
+
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/prometheus/promql/parser"
 	"github.com/rexagod/cpv/internal/client"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
-	"os"
-	"regexp"
-	"strings"
-	"text/tabwriter"
 )
 
 type minimalProfileOperator struct{}
 
 func (o *minimalProfileOperator) Operator(ctx context.Context, dc *dynamic.DynamicClient, c *client.Client) error {
-	profile := MinimalCollectionProfile
-
 	// Fetch all monitors for the profile.
-	podMonitors, serviceMonitors, err := fetchMonitorsForProfile(ctx, dc, profile)
+	podMonitors, serviceMonitors, err := fetchMonitorsForProfile(ctx, dc, MinimalCollectionProfile)
 	if err != nil {
-		klog.Errorf("failed to fetch monitors for profile %s: %v", profile, err)
+		klog.Errorf("failed to fetch monitors for profile %s: %v", MinimalCollectionProfile, err)
 	}
 
 	// `metrics` has all the loaded metrics that are present in the Prometheus instance at `--address`.
@@ -54,9 +53,9 @@ func (o *minimalProfileOperator) Operator(ctx context.Context, dc *dynamic.Dynam
 		regexps[podmonitor.Name] = expr
 	}
 
-	file, err := os.CreateTemp("/tmp", fmt.Sprintf("%s-profile-*.log", profile))
+	file, err := os.CreateTemp("/tmp", fmt.Sprintf("%s-profile-operator-metric-discrepancies-*.log", MinimalCollectionProfile))
 	if err != nil {
-		return fmt.Errorf("failed to create recorder: %w", err)
+		return fmt.Errorf("failed to create file: %w", err)
 	}
 	defer func() {
 		_ = file.Close()
@@ -68,7 +67,7 @@ func (o *minimalProfileOperator) Operator(ctx context.Context, dc *dynamic.Dynam
 	// have a direct correlation between a rule using a metric that is defined by a profile-specific monitor. This
 	// essentially means that the associated profile does not have all the required metrics available at this point of
 	// time.
-	columns := fmt.Sprintf("%s MONITOR\tGROUP\tLOCATION\tRULE\tQUERY\tMETRIC\tERROR", strings.ToUpper(string(profile)))
+	columns := fmt.Sprintf("%s MONITOR\tGROUP\tLOCATION\tRULE\tQUERY\tMETRIC\tERROR", strings.ToUpper(string(MinimalCollectionProfile)))
 	_, _ = fmt.Fprintln(w, columns)
 	for _, group := range rules.Groups {
 		for _, rule := range group.Rules {
@@ -123,7 +122,7 @@ func (o *minimalProfileOperator) Operator(ctx context.Context, dc *dynamic.Dynam
 
 	_ = w.Flush()
 	if *recorder.loadIssues > 0 {
-		klog.Errorf(ErrNonNilIssues, *recorder.loadIssues, file.Name())
+		klog.Infof("encountered %d issues, refer: %s", *recorder.loadIssues, file.Name())
 	} else {
 		_ = os.Remove(file.Name())
 	}

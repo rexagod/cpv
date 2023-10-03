@@ -3,11 +3,12 @@ package profiles
 import (
 	"context"
 	"fmt"
+	"os"
+	"text/tabwriter"
+
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
-	"os"
-	"text/tabwriter"
 )
 
 // ReportImplementationStatus reports the implementation status w.r.t. all supported collection profiles, and points out
@@ -71,7 +72,7 @@ func ReportImplementationStatus(ctx context.Context, dc *dynamic.DynamicClient) 
 	_ = w.Flush()
 	// Delete the file if there are no implementation issues.
 	if *recorder.implementationIssues > 0 {
-		klog.Errorf(ErrNonNilIssues, *recorder.implementationIssues, file.Name())
+		klog.Errorf("encountered %d issues, refer: %s", *recorder.implementationIssues, file.Name())
 	} else {
 		_ = os.Remove(file.Name())
 	}

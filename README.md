@@ -9,9 +9,9 @@
 `cpv` expects the following set of flags.
 
 ```console
-┌[rexagod@nebuchadnezzar] [/dev/ttys002] [main ⚡] 
-└[~/repositories/work/cpv]> go run main.go -h
-Usage of /var/folders/lt/fkdznpv57qjfcvm4p2psgcj00000gn/T/go-build2892643343/b001/exe/main:
+┌[rexagod@nebuchadnezzar] [/dev/ttys001] [main] 
+└[~/repositories/work/cpv]> go run main.go -h     
+Usage of /var/folders/lt/fkdznpv57qjfcvm4p2psgcj00000gn/T/go-build3274915652/b001/exe/main:
   -address string
         Address of the Prometheus instance. (default "http://localhost:9090")
   -bearer-token string
@@ -19,9 +19,11 @@ Usage of /var/folders/lt/fkdznpv57qjfcvm4p2psgcj00000gn/T/go-build2892643343/b00
   -extract-for-profile string
         Extract the metrics needed to implement the given collection profile.
   -extract-for-profile-param string
-        Path to rule file, or targets to be used to extract the metrics needed to implement the --extract-for-profile.
+        Path to rule file, or targets to be used to extract the metrics needed to implement the -extract-for-profile.
   -kubeconfig string
         Path to kubeconfig file. (default "$KUBECONFIG")
+  -output-cardinality
+        Output cardinality of all extracted metrics (while using -extract-for-profile-*).
   -profile string
         Collection profile to run the validation against.
   -status

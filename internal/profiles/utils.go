@@ -16,9 +16,8 @@ import (
 )
 
 const (
-	ErrImplemented  = "not implemented"
-	ErrLoaded       = "not loaded"
-	ErrNonNilIssues = "encountered %d issues, refer: %s"
+	ErrImplemented = "not implemented"
+	ErrLoaded      = "not loaded"
 )
 
 type Recorder struct {

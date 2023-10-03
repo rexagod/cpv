@@ -29,6 +29,7 @@ func main() {
 		status                 bool
 		extractForProfile      string
 		extractForProfileParam string
+		outputCardinality      bool
 	)
 	flag.StringVar(&bearerToken, "bearer-token", "", "Bearer token for authentication.")
 	flag.StringVar(&address, "address", "http://localhost:9090", "Address of the Prometheus instance.")
@@ -38,7 +39,8 @@ func main() {
 	flag.StringVar(&extractForProfile, "extract-for-profile", "", "Extract the metrics needed to implement the given collection profile.")
 
 	// Specifying targets: https://github.com/prometheus/client_golang/blob/644c80d1360fb1409a3fe8dfc5bad4228f282f3b/api/prometheus/v1/api_test.go#L1007
-	flag.StringVar(&extractForProfileParam, "extract-for-profile-param", "", "Path to rule file, or targets to be used to extract the metrics needed to implement the --extract-for-profile.")
+	flag.StringVar(&extractForProfileParam, "extract-for-profile-param", "", "Path to rule file, or targets to be used to extract the metrics needed to implement the -extract-for-profile.")
+	flag.BoolVar(&outputCardinality, "output-cardinality", false, "Output cardinality of all extracted metrics (while using -extract-for-profile-*).")
 	flag.Parse()
 	if len(bearerToken) == 0 {
 		klog.Fatal("Bearer token must be set")
@@ -70,11 +72,11 @@ func main() {
 
 	// Call profile-specific operator to validate the respective profile.
 	if profile != "" {
-		profile := profiles.CollectionProfile(profile)
-		if !profiles.IsSupportedCollectionProfile(profile) {
-			klog.Fatalf(invalidProfileErr, profile)
+		p := profiles.CollectionProfile(profile)
+		if !profiles.IsSupportedCollectionProfile(p) {
+			klog.Fatalf(invalidProfileErr, p)
 		}
-		err = profiles.ProfileOperators[profile].Operator(ctx, dc, c)
+		err = profiles.ProfileOperators[p].Operator(ctx, dc, c)
 		if err != nil {
 			klog.Error(err)
 		}
@@ -89,7 +91,7 @@ func main() {
 		if !profiles.IsSupportedCollectionProfile(extractProfile) {
 			klog.Fatalf(invalidProfileErr, extractProfile)
 		}
-		err = profiles.ProfileExtractors[extractProfile].Extract(ctx, dc, c, extractForProfileParam)
+		err = profiles.ProfileExtractors[extractProfile].Extract(ctx, dc, c, extractForProfileParam, outputCardinality)
 		if err != nil {
 			klog.Error(err)
 		}

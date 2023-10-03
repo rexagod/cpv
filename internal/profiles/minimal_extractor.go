@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"text/tabwriter"
 
 	v1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/prometheus/prometheus/model/labels"
@@ -33,6 +34,11 @@ func (g *minimalProfileExtractor) Extract(
 		return fmt.Errorf("expected a string, got: %v", parameters[0])
 	}
 
+	outputCardinality, ok := parameters[1].(bool)
+	if !ok {
+		return fmt.Errorf("expected a bool, got: %v", parameters[1])
+	}
+
 	// Check if rule file exists.
 	ruleFile, err := filepath.Abs(filepath.Clean(maybePathOrTargets))
 	if err != nil {
@@ -41,14 +47,14 @@ func (g *minimalProfileExtractor) Extract(
 	if _, err := os.Stat(ruleFile); !os.IsNotExist(err) {
 
 		// Extract metrics from rule file.
-		err := extractMetricsFromRuleFile(ruleFile)
+		err := extractMetricsFromRuleFile(ctx, c, ruleFile, outputCardinality)
 		if err != nil {
 			return fmt.Errorf("failed to extract metrics from rule file: %w", err)
 		}
 	} else {
 
 		// Extract the metrics needed to implement minimal collection profile.
-		if err := extractMinimalProfileFromTargets(ctx, c, maybePathOrTargets); err != nil {
+		if err := extractMinimalProfileFromTargets(ctx, c, maybePathOrTargets, outputCardinality); err != nil {
 			return fmt.Errorf("failed to extract %s profile from targets: %w", profile, err)
 		}
 	}
@@ -56,10 +62,10 @@ func (g *minimalProfileExtractor) Extract(
 	return nil
 }
 
-func extractMetricsFromRuleFile(ruleFile string) error {
-	ruleGroups, err := rulefmt.ParseFile(ruleFile)
-	if err != nil {
-		return fmt.Errorf("failed to parse rule file: %v", err)
+func extractMetricsFromRuleFile(ctx context.Context, c *client.Client, ruleFile string, outputCardinality bool) error {
+	ruleGroups, parseErr := rulefmt.ParseFile(ruleFile)
+	if parseErr != nil {
+		return fmt.Errorf("failed to parse rule file: %v", parseErr)
 	}
 	metrics := sets.Set[string]{}
 	for _, group := range ruleGroups.Groups {
@@ -80,12 +86,16 @@ func extractMetricsFromRuleFile(ruleFile string) error {
 			)
 		}
 	}
-	fmt.Print(toRelabelConfig(fmt.Sprintf("(%s)", strings.Join(metrics.UnsortedList(), "|"))))
+
+	err := handleOutput(ctx, c, metrics, outputCardinality)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
-func extractMinimalProfileFromTargets(ctx context.Context, c *client.Client, targets string) error {
+func extractMinimalProfileFromTargets(ctx context.Context, c *client.Client, targets string, outputCardinality bool) error {
 	expr, err := parser.ParseExpr(targets)
 	if err != nil {
 		return fmt.Errorf("failed to parse targets: %w", err)
@@ -126,7 +136,52 @@ func extractMinimalProfileFromTargets(ctx context.Context, c *client.Client, tar
 		m := data.Metric
 		metrics.Insert(m)
 	}
-	fmt.Print(toRelabelConfig(fmt.Sprintf("(%s)", strings.Join(metrics.UnsortedList(), "|"))))
+
+	err = handleOutput(ctx, c, metrics, outputCardinality)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func handleOutput(ctx context.Context, c *client.Client, metrics sets.Set[string], outputCardinality bool) error {
+
+	// Write cardinality statistics to a file.
+	metricSet := metrics.UnsortedList()
+	logFile, err := os.CreateTemp("/tmp", fmt.Sprintf("%s-profile-extractor-cardinality-statistics*.log", MinimalCollectionProfile))
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+	defer func() {
+		_ = logFile.Close()
+	}()
+	logRecorder := &Recorder{file: logFile}
+	logW := tabwriter.NewWriter(logRecorder, 0, 0, 2, ' ', 0)
+	columns := fmt.Sprintf("METRIC\tCARDINALITY\n")
+	if outputCardinality {
+		cardinalityStats := c.EvaluateCardinalities(ctx, &metrics)
+		_, _ = fmt.Fprint(logW, columns)
+		for _, cardinalityStat := range cardinalityStats {
+			_, _ = fmt.Fprintf(logW, "%s\t%d\n", cardinalityStat.Metric, cardinalityStat.Value)
+		}
+		klog.Infof("cardinality statistics written, refer: %s", logFile.Name())
+	} else {
+		_ = os.Remove(logFile.Name())
+	}
+	_ = logW.Flush()
+
+	// Write the relabel config (with the extracted metrics) to a file.
+	relabelConfig := toRelabelConfig(fmt.Sprintf("(%s)", strings.Join(metricSet, "|")))
+	relabelConfigFile, err := os.CreateTemp("/tmp", fmt.Sprintf("%s-profile-extractor-relabel-config-*.yaml", MinimalCollectionProfile))
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+	defer func() {
+		_ = relabelConfigFile.Close()
+	}()
+	_, _ = fmt.Fprint(relabelConfigFile, relabelConfig)
+	klog.Infof("relabel config written, refer: %s", relabelConfigFile.Name())
 
 	return nil
 }

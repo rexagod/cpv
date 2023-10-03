@@ -9,6 +9,8 @@ linters:
     - goerr113
     - unparam
     - depguard
+    - testpackage
+    - prealloc
   presets:
     - bugs
     - comment
