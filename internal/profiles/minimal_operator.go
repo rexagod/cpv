@@ -18,9 +18,9 @@ import (
 
 type minimalProfileOperator struct{}
 
-func (o *minimalProfileOperator) Operator(ctx context.Context, dc *dynamic.DynamicClient, c *client.Client) error {
+func (o *minimalProfileOperator) Operator(ctx context.Context, dc *dynamic.DynamicClient, c *client.Client, noisy bool) error {
 	// Fetch all monitors for the profile.
-	podMonitors, serviceMonitors, err := fetchMonitorsForProfile(ctx, dc, MinimalCollectionProfile)
+	podMonitors, serviceMonitors, err := fetchMonitorsForProfile(ctx, dc, MinimalCollectionProfile, noisy)
 	if err != nil {
 		klog.Errorf("failed to fetch monitors for profile %s: %v", MinimalCollectionProfile, err)
 	}

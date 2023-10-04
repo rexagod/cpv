@@ -41,10 +41,14 @@ func (r *Recorder) Write(p []byte) (n int, err error) {
 	return r.file.Write(p)
 }
 
-func fetchServiceMonitorsForProfile(ctx context.Context, dc *dynamic.DynamicClient, profile CollectionProfile) (*monitoringv1.ServiceMonitorList, error) {
-	labelSelector := CollectionProfileOptInLabel
-	if profile != "" {
-		labelSelector = labelSelector + "=" + string(profile)
+func fetchServiceMonitorsForProfile(ctx context.Context, dc *dynamic.DynamicClient, profile CollectionProfile, noisy bool) (*monitoringv1.ServiceMonitorList, error) {
+	var labelSelector string
+	interpretAbsentCPLabelAsFull := noisy && profile == FullCollectionProfile
+	if !interpretAbsentCPLabelAsFull {
+		labelSelector = CollectionProfileOptInLabel
+		if profile != "" {
+			labelSelector = labelSelector + "=" + string(profile)
+		}
 	}
 	l, err := dc.Resource(schema.GroupVersionResource{
 		Group:    monitoring.GroupName,
@@ -65,10 +69,14 @@ func fetchServiceMonitorsForProfile(ctx context.Context, dc *dynamic.DynamicClie
 	return serviceMonitors, nil
 }
 
-func fetchPodMonitorsForProfile(ctx context.Context, dc *dynamic.DynamicClient, profile CollectionProfile) (*monitoringv1.PodMonitorList, error) {
-	labelSelector := CollectionProfileOptInLabel
-	if profile != "" {
-		labelSelector = labelSelector + "=" + string(profile)
+func fetchPodMonitorsForProfile(ctx context.Context, dc *dynamic.DynamicClient, profile CollectionProfile, noisy bool) (*monitoringv1.PodMonitorList, error) {
+	var labelSelector string
+	interpretAbsentCPLabelAsFull := noisy && profile == FullCollectionProfile
+	if !interpretAbsentCPLabelAsFull {
+		labelSelector = CollectionProfileOptInLabel
+		if profile != "" {
+			labelSelector = labelSelector + "=" + string(profile)
+		}
 	}
 	l, err := dc.Resource(schema.GroupVersionResource{
 		Group:    monitoring.GroupName,
@@ -91,12 +99,12 @@ func fetchPodMonitorsForProfile(ctx context.Context, dc *dynamic.DynamicClient, 
 
 // fetchMonitorsForProfile returns pod and service monitors that implement the specified profile, leave it out to get
 // monitors for all profiles.
-func fetchMonitorsForProfile(ctx context.Context, dc *dynamic.DynamicClient, profile CollectionProfile) (*monitoringv1.PodMonitorList, *monitoringv1.ServiceMonitorList, error) {
-	podMonitors, err := fetchPodMonitorsForProfile(ctx, dc, profile)
+func fetchMonitorsForProfile(ctx context.Context, dc *dynamic.DynamicClient, profile CollectionProfile, noisy bool) (*monitoringv1.PodMonitorList, *monitoringv1.ServiceMonitorList, error) {
+	podMonitors, err := fetchPodMonitorsForProfile(ctx, dc, profile, noisy)
 	if err != nil {
 		return nil, nil, err
 	}
-	serviceMonitors, err := fetchServiceMonitorsForProfile(ctx, dc, profile)
+	serviceMonitors, err := fetchServiceMonitorsForProfile(ctx, dc, profile, noisy)
 	if err != nil {
 		return nil, nil, err
 	}

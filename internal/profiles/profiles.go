@@ -13,6 +13,7 @@ type operator interface {
 		context.Context,
 		*dynamic.DynamicClient,
 		*client.Client,
+		bool,
 	) error
 }
 
@@ -32,7 +33,6 @@ var ProfileOperators = map[CollectionProfile]operator{
 type extractor interface {
 	Extract(
 		context.Context,
-		*dynamic.DynamicClient,
 		*client.Client,
 		...interface{},
 	) error

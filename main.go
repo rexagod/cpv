@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"flag"
-	"os"
+	"github.com/rexagod/cpv/internal"
 	"time"
 
 	"github.com/rexagod/cpv/internal/client"
@@ -14,54 +14,31 @@ import (
 )
 
 const (
+	contextTimeout    = 5 * time.Minute
 	invalidProfileErr = "invalid profile: %s"
-	contextTimout     = 10 * time.Second
 )
 
 func main() {
 
-	// Initialize and validate flags.
-	var (
-		bearerToken            string
-		address                string
-		kubeconfigPath         string
-		profile                string
-		status                 bool
-		extractForProfile      string
-		extractForProfileParam string
-		outputCardinality      bool
-	)
-	flag.StringVar(&bearerToken, "bearer-token", "", "Bearer token for authentication.")
-	flag.StringVar(&address, "address", "http://localhost:9090", "Address of the Prometheus instance.")
-	flag.StringVar(&kubeconfigPath, "kubeconfig", os.Getenv("KUBECONFIG"), "Path to kubeconfig file.")
-	flag.StringVar(&profile, "profile", "", "Collection profile to run the validation against.")
-	flag.BoolVar(&status, "status", false, "Report collection profiles implementation status.")
-	flag.StringVar(&extractForProfile, "extract-for-profile", "", "Extract the metrics needed to implement the given collection profile.")
+	// Get options.
+	o := internal.NewOptions()
 
-	// Specifying targets: https://github.com/prometheus/client_golang/blob/644c80d1360fb1409a3fe8dfc5bad4228f282f3b/api/prometheus/v1/api_test.go#L1007
-	flag.StringVar(&extractForProfileParam, "extract-for-profile-param", "", "Path to rule file, or targets to be used to extract the metrics needed to implement the -extract-for-profile.")
-	flag.BoolVar(&outputCardinality, "output-cardinality", false, "Output cardinality of all extracted metrics (while using -extract-for-profile-*).")
-	flag.Parse()
-	if len(bearerToken) == 0 {
-		klog.Fatal("Bearer token must be set")
-	}
-	if len(address) == 0 {
-		klog.Fatal("Address must be set")
-	}
-	if len(kubeconfigPath) == 0 {
-		klog.Fatal("KUBECONFIG must be set")
+	// Check if the endpoint at -address is up.
+	err := o.IsUp()
+	if err != nil {
+		klog.Fatal(err)
 	}
 
 	// Create a new client.
-	ctx, cancel := context.WithTimeout(context.Background(), contextTimout)
+	ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
 	defer cancel()
-	c := client.NewClient(ctx, address, bearerToken)
+	c := client.NewClient(ctx, o.Address, o.BearerToken)
 	if err := c.Init(); err != nil {
 		klog.Fatal(err)
 	}
 
 	// Create a new Kube client.
-	kubeconfig, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+	kubeconfig, err := clientcmd.BuildConfigFromFlags("", o.KubeconfigPath)
 	if err != nil {
 		klog.Fatal(err)
 	}
@@ -70,38 +47,67 @@ func main() {
 		klog.Fatal(err)
 	}
 
+	// Track if any operation was performed based on the given inputs.
+	didOp := false
+
 	// Call profile-specific operator to validate the respective profile.
-	if profile != "" {
-		p := profiles.CollectionProfile(profile)
+	if o.Profile != "" && o.Validate {
+		didOp = true
+		p := profiles.CollectionProfile(o.Profile)
 		if !profiles.IsSupportedCollectionProfile(p) {
 			klog.Fatalf(invalidProfileErr, p)
 		}
-		err = profiles.ProfileOperators[p].Operator(ctx, dc, c)
+		err = profiles.ProfileOperators[p].Operator(
+			ctx,
+			dc,
+			c,
+			o.Noisy,
+		)
 		if err != nil {
 			klog.Error(err)
 		}
 	}
 
 	// Call profile-specific extractor to extract the metrics needed to implement the respective profile.
-	if extractForProfile != "" {
-		if extractForProfileParam == "" {
-			klog.Fatal("extract-for-profile-param must be set when using --extract-for-profile")
+	if o.Profile != "" && o.HasExtractor() {
+		didOp = true
+		p := profiles.CollectionProfile(o.Profile)
+		if !profiles.IsSupportedCollectionProfile(p) {
+			klog.Fatalf(invalidProfileErr, p)
 		}
-		extractProfile := profiles.CollectionProfile(extractForProfile)
-		if !profiles.IsSupportedCollectionProfile(extractProfile) {
-			klog.Fatalf(invalidProfileErr, extractProfile)
-		}
-		err = profiles.ProfileExtractors[extractProfile].Extract(ctx, dc, c, extractForProfileParam, outputCardinality)
+		err = profiles.ProfileExtractors[p].Extract(
+			ctx,
+			c,
+			o.AllowListFile,
+			o.RuleFile,
+			o.TargetSelectors,
+			o.OutputCardinality,
+		)
 		if err != nil {
 			klog.Error(err)
 		}
 	}
 
 	// Report implementation status for all supported profiles.
-	if status {
-		err = profiles.ReportImplementationStatus(ctx, dc)
+	if o.Status {
+		didOp = true
+		p := profiles.CollectionProfile(o.Profile)
+		if !profiles.IsSupportedCollectionProfile(p) && p != "" {
+			klog.Fatalf(invalidProfileErr, p)
+		}
+		err = profiles.ReportImplementationStatus(
+			ctx,
+			dc,
+			p,
+			o.Noisy,
+		)
 		if err != nil {
 			klog.Error(err)
 		}
+	}
+
+	// If no operation was performed, print usage.
+	if !didOp {
+		flag.Usage()
 	}
 }
