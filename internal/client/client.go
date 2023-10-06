@@ -1,3 +1,4 @@
+// Package client contains the client for Prometheus.
 package client
 
 import (

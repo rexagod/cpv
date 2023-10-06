@@ -1,10 +1,12 @@
+// Package profiles contains the collection profiles supported by the metrics-anomaly-detector.
 package profiles
 
 import (
 	"context"
 
-	"github.com/rexagod/cpv/internal/client"
 	"k8s.io/client-go/dynamic"
+
+	"github.com/rexagod/cpv/internal/client"
 )
 
 // operator is an interface that defines the Operator method, which must be implemented by all profile operators.

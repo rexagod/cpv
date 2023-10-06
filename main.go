@@ -3,14 +3,15 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/rexagod/cpv/internal"
 	"time"
 
-	"github.com/rexagod/cpv/internal/client"
-	"github.com/rexagod/cpv/internal/profiles"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
+
+	"github.com/rexagod/cpv/internal/client"
+	"github.com/rexagod/cpv/internal/options"
+	"github.com/rexagod/cpv/internal/profiles"
 )
 
 const (
@@ -21,7 +22,7 @@ const (
 func main() {
 
 	// Get options.
-	o := internal.NewOptions()
+	o := options.NewOptions()
 
 	// Check if the endpoint at -address is up.
 	err := o.IsUp()

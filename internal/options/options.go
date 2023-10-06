@@ -1,11 +1,15 @@
-package internal
+// Package options contains the options for the command.
+package options
 
 import (
 	"flag"
 	"fmt"
-	"k8s.io/klog/v2"
 	"net/http"
 	"os"
+
+	"k8s.io/klog/v2"
+
+	v "github.com/rexagod/cpv/internal/version"
 )
 
 var (
@@ -20,6 +24,7 @@ var (
 	status            bool
 	targetSelector    string
 	validate          bool
+	version           bool
 )
 
 func init() {
@@ -34,7 +39,16 @@ func init() {
 	flag.BoolVar(&status, "status", false, "Report collection profiles implementation status. -profile may be empty to report status for all profiles.")
 	flag.StringVar(&targetSelector, "target-selectors", "", "Target selectors used to extract metrics, for eg., https://github.com/prometheus/client_golang/blob/644c80d1360fb1409a3fe8dfc5bad4228f282f3b/api/prometheus/v1/api_test.go#L1007. Requires -profile flag to be set.")
 	flag.BoolVar(&validate, "validate", false, "Validate the collection profile implementation. Requires -profile flag to be set.")
+	flag.BoolVar(&version, "version", false, "Print version information.")
 	flag.Parse()
+
+	// Print version information.
+	if version {
+		v.Println()
+		if flag.NFlag() == 1 {
+			os.Exit(0)
+		}
+	}
 
 	if len(bearerToken) == 0 {
 		klog.Fatal("Bearer token must be set")
@@ -67,6 +81,7 @@ func (o *Options) HasExtractor() bool {
 }
 
 func (o *Options) IsUp() error {
+	// nolint: noctx
 	response, err := http.Get(o.Address)
 	if err != nil {
 		return fmt.Errorf("failed to get response from %s: %w", o.Address, err)

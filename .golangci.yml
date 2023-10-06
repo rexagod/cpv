@@ -7,10 +7,10 @@ linters:
   disable:
     - exhaustruct
     - goerr113
-    - unparam
     - depguard
     - testpackage
     - prealloc
+    - gci
   presets:
     - bugs
     - comment

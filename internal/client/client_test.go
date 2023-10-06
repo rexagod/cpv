@@ -2,6 +2,8 @@ package client
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"os"
 	"testing"
 
@@ -13,8 +15,25 @@ var (
 	address = os.Getenv("PROMETHEUS_ADDRESS")
 )
 
+func isUp(address string) error {
+	// nolint: gosec,noctx
+	response, err := http.Get(address)
+
+	// go vet complains if we do anything before checking for errors.
+	if err != nil {
+		return fmt.Errorf("could not establish a connection to '%s'", address)
+	}
+	defer response.Body.Close()
+
+	return nil
+}
+
 func TestGetCardinalityForMetric(t *testing.T) {
 	t.Parallel()
+
+	if err := isUp(address); err != nil {
+		t.Skip(err)
+	}
 
 	metric := &parser.VectorSelector{
 		Name: "up",
@@ -33,6 +52,10 @@ func TestGetCardinalityForMetric(t *testing.T) {
 
 func TestEvaluateCardinalities(t *testing.T) {
 	t.Parallel()
+
+	if err := isUp(address); err != nil {
+		t.Skip(err)
+	}
 
 	metricSet := sets.Set[string]{}
 	metricSet.Insert("foo")
