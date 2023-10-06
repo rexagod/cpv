@@ -2,6 +2,7 @@ package internal
 
 import (
 	"flag"
+	"fmt"
 	"k8s.io/klog/v2"
 	"net/http"
 	"os"
@@ -25,7 +26,7 @@ func init() {
 	flag.StringVar(&address, "address", "http://localhost:9090", "Address of the Prometheus instance.")
 	flag.StringVar(&allowListFile, "allow-list-file", "", "Path to a file containing a list of allow-listed metrics that will always be included within the extracted metrics set. Requires -profile flag to be set.")
 	flag.StringVar(&bearerToken, "bearer-token", "", "Bearer token for authentication.")
-	flag.StringVar(&kubeconfigPath, "kubeconfig", os.Getenv("KUBECONFIG"), "Path to kubeconfig file.")
+	flag.StringVar(&kubeconfigPath, "kubeconfig", os.Getenv("KUBECONFIG"), "Path to kubeconfig file. Defaults to $KUBECONFIG.")
 	flag.BoolVar(&noisy, "noisy", false, "Enable noisy assumptions: interpret the absence of the collection profiles label as the default 'full' profile (when using the -status flag).")
 	flag.BoolVar(&outputCardinality, "output-cardinality", false, "Output cardinality of all extracted metrics to a file.")
 	flag.StringVar(&profile, "profile", "", "Collection profile that the command is being run for.")
@@ -67,9 +68,12 @@ func (o *Options) HasExtractor() bool {
 
 func (o *Options) IsUp() error {
 	response, err := http.Get(o.Address)
+	if err != nil {
+		return fmt.Errorf("failed to get response from %s: %w", o.Address, err)
+	}
 	defer response.Body.Close()
 
-	return err
+	return nil
 }
 
 // NewOptions returns a new Options.

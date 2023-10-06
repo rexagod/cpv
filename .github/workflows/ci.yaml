@@ -1,0 +1,48 @@
+name: ci
+
+on:
+  push:
+    paths:
+      - internal/options.go
+
+env:
+  GO_VERSION: "^1.20"
+
+permissions:
+    contents: write
+
+jobs:
+    generate-readme:
+        runs-on: ubuntu-latest
+        steps:
+        - name: checkout
+          uses: actions/checkout@v3
+        - name: setup-go
+          uses: actions/setup-go@v3
+          with:
+            go-version: ${{ env.GO_VERSION }}
+        - name: vet
+          run: go vet ./...
+        - name: generate help.md
+          run: |
+            go build -o cpv
+            echo '```' >> help.md
+            ./cpv -h >> help.md 2>&1
+            echo '```' >> help.md
+            cat help.md
+        - name: generate README.md
+          uses: ryohidaka/action-md-insert@v1.2.0
+          with:
+            template_path: ".github/workflows/templates/README.md"
+            src_dir: "./"
+            dest_file: "./README.md"
+        - name: commit changes
+          uses: stefanzweifel/git-auto-commit-action@v4
+          env:
+            GITHUB_TOKEN: ${{ secrets.CPV_TOKEN }}
+          with:
+            commit_message: Update README.md
+            branch: main
+            commit_options: '--no-verify --no-gpg-sign'
+            file_pattern: README.md
+            commit_user_email: actions@github.com
