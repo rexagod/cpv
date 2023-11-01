@@ -10,11 +10,10 @@ import (
 
 	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
 	"github.com/prometheus/prometheus/promql/parser"
+	"github.com/rexagod/cpv/internal/client"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
-
-	"github.com/rexagod/cpv/internal/client"
 )
 
 type minimalProfileOperator struct{}

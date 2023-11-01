@@ -89,7 +89,7 @@ func main() {
 		}
 	}
 
-	// Report implementation status for all supported profiles.
+	// Report implementation status for all supported profiles, or a particular one if specified.
 	if o.Status {
 		didOp = true
 		p := profiles.CollectionProfile(o.Profile)

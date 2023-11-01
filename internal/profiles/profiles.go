@@ -4,9 +4,8 @@ package profiles
 import (
 	"context"
 
-	"k8s.io/client-go/dynamic"
-
 	"github.com/rexagod/cpv/internal/client"
+	"k8s.io/client-go/dynamic"
 )
 
 // operator is an interface that defines the Operator method, which must be implemented by all profile operators.

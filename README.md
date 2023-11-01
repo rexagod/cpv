@@ -9,6 +9,7 @@
 `cpv` expects the following set of flags.
 
 <!-- help.md -->
+
 ```
 Usage of ./cpv:
   -address string
@@ -36,7 +37,6 @@ Usage of ./cpv:
   -version
     	Print version information.
 ```
-
 
 ## License
 
