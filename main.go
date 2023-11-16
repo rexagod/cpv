@@ -3,8 +3,14 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
+	"os"
+	"os/exec"
+	"regexp"
+	"strings"
 	"time"
 
+	"github.com/go-stack/stack"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
@@ -110,5 +116,42 @@ func main() {
 	// If no operation was performed, print usage.
 	if !didOp {
 		flag.Usage()
+		os.Exit(1)
+	}
+
+	// If quiet mode is enabled, open all generated manifests in $EDITOR.
+	if o.Quiet {
+		klog.Flush()
+		klogFileName := flag.Lookup("log_file").Value.String()
+		if klogFileName == "" {
+			panic(fmt.Errorf("failed to lookup log_file: %s", stack.Trace()))
+		}
+		raw, err := os.ReadFile(klogFileName)
+		if err != nil {
+			panic(err)
+		}
+		r := regexp.MustCompile(`refer: (.*)\b`)
+		matches := r.FindAllStringSubmatch(string(raw), -1)
+		if len(matches) > 0 {
+			var captureGroups []string
+			for _, match := range matches {
+				captureGroups = append(captureGroups, match[1])
+			}
+			editor := os.Getenv("EDITOR")
+			editorPath, err := exec.Command("which", editor).Output()
+			if err != nil {
+				panic(err)
+			}
+			// gosec complains if the args are not hardcoded.
+			// nolint:gosec
+			cmd := exec.Command(strings.Trim(string(editorPath), "\n"), captureGroups...)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Stdin = os.Stdin
+			err = cmd.Run()
+			if err != nil {
+				panic(err)
+			}
+		}
 	}
 }

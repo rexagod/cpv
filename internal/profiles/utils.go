@@ -16,8 +16,9 @@ import (
 )
 
 const (
-	ErrImplemented = "not implemented"
-	ErrLoaded      = "not loaded"
+	ErrImplemented           = "not implemented"
+	ErrLoaded                = "not loaded"
+	CtxGeneratedManifestsKey = "generatedManifests"
 )
 
 type Recorder struct {

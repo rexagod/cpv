@@ -20,6 +20,7 @@ var (
 	noisy             bool
 	outputCardinality bool
 	profile           string
+	quiet             bool
 	ruleFile          string
 	status            bool
 	targetSelector    string
@@ -28,6 +29,8 @@ var (
 )
 
 func init() {
+
+	// Mandatory flags.
 	flag.StringVar(&address, "address", "http://localhost:9090", "Address of the Prometheus instance.")
 	flag.StringVar(&bearerToken, "bearer-token", "", "Bearer token for authentication.")
 	flag.StringVar(&kubeconfigPath, "kubeconfig", os.Getenv("KUBECONFIG"), "Path to kubeconfig file. Defaults to $KUBECONFIG.")
@@ -36,18 +39,48 @@ func init() {
 	flag.BoolVar(&noisy, "noisy", false, "Enable noisy assumptions: interpret the absence of the collection profiles label as the default 'full' profile (when using the -status flag).")
 	flag.BoolVar(&outputCardinality, "output-cardinality", false, "Output cardinality of all extracted metrics to a file.")
 	flag.StringVar(&profile, "profile", "", "Collection profile that the command is being run for.")
+	flag.BoolVar(&quiet, "quiet", false, "Suppress all output, and use $EDITOR for generated manifests.")
 	flag.BoolVar(&version, "version", false, "Print version information.")
 
 	// Dependent flags.
 	flag.StringVar(&allowListFile, "allow-list-file", "", "Path to a file containing a list of allow-listed metrics that will always be included within the extracted metrics set. Requires -profile flag to be set.")
 	flag.StringVar(&ruleFile, "rule-file", "", "Path to a valid rule file to extract metrics from, for eg., https://github.com/prometheus/prometheus/blob/v0.45.0/model/rulefmt/testdata/test.yaml. Requires -profile flag to be set.")
-	flag.BoolVar(&status, "status", false, "Report collection profiles implementation status. -profile may be empty to report status for all profiles.")
+	flag.BoolVar(&status, "status", false, "Report collection profiles' implementation status. -profile may be empty to report status for all profiles.")
 	flag.StringVar(&targetSelector, "target-selectors", "", "Target selectors used to extract metrics, for eg., https://github.com/prometheus/client_golang/blob/644c80d1360fb1409a3fe8dfc5bad4228f282f3b/api/prometheus/v1/api_test.go#L1007. Requires -profile flag to be set.")
 	flag.BoolVar(&validate, "validate", false, "Validate the collection profile implementation. Requires -profile flag to be set.")
 
+	// Check if -quiet flag is set.
+	var didQuiet bool
+	for _, arg := range os.Args[1:] {
+		if arg == "-quiet" {
+			didQuiet = true
+
+			break
+		}
+	}
+
+	// Set klog behavior.
+	if didQuiet {
+		klog.InitFlags(nil)
+		err := flag.Set("logtostderr", "false")
+		if err != nil {
+			panic(err)
+		}
+		klogFile, err := os.CreateTemp(".", "cpv-klog-*.log")
+		if err != nil {
+			panic(err)
+		}
+
+		// NOTE: all klog.Error* logs will still be printed to stdout.
+		err = flag.Set("log_file", klogFile.Name())
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	// Parse flags.
 	flag.Parse()
 
-	// Print version information.
 	if version {
 		v.Println()
 		if flag.NFlag() == 1 {
@@ -75,6 +108,7 @@ type Options struct {
 	Noisy             bool
 	OutputCardinality bool
 	Profile           string
+	Quiet             bool
 	RuleFile          string
 	Status            bool
 	TargetSelectors   string
@@ -106,6 +140,7 @@ func NewOptions() *Options {
 		Noisy:             noisy,
 		OutputCardinality: outputCardinality,
 		Profile:           profile,
+		Quiet:             quiet,
 		RuleFile:          ruleFile,
 		Status:            status,
 		TargetSelectors:   targetSelector,

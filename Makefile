@@ -48,7 +48,7 @@ test: test-unit # test-e2e
 
 .PHONY: clean
 clean:
-	@rm -f cpv
+	@rm -f cpv cpv-klog-*
 	@git clean -fxd
 
 .make/vale: .vale.ini $(wildcard .vale/*) $(MD_FILES)

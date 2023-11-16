@@ -3,7 +3,7 @@ name: update-readme
 on:
   push:
     paths:
-      - internal/options.go
+      - internal/options/options.go
 
 env:
   GO_VERSION: "^1.20"

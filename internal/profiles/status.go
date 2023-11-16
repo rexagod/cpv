@@ -85,7 +85,7 @@ func ReportImplementationStatus(ctx context.Context, dc *dynamic.DynamicClient, 
 	_ = w.Flush()
 	// Delete the file if there are no implementation issues.
 	if *recorder.implementationIssues > 0 {
-		klog.Errorf("encountered %d issues, refer: %s", *recorder.implementationIssues, file.Name())
+		klog.Infof("encountered %d issues, refer: %s", *recorder.implementationIssues, file.Name())
 	} else {
 		_ = os.Remove(file.Name())
 	}

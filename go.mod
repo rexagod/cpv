@@ -3,11 +3,11 @@ module github.com/rexagod/cpv
 go 1.20
 
 require (
+	github.com/go-stack/stack v1.8.0
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.66.0
 	github.com/prometheus/client_golang v1.16.0
 	github.com/prometheus/common v0.44.0
 	github.com/prometheus/prometheus v0.47.0
-	github.com/rexagod/mad v0.0.1
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/apimachinery v0.27.3
 	k8s.io/client-go v0.27.3
