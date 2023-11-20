@@ -9,7 +9,6 @@
 `cpv` expects the following set of flags.
 
 <!-- help.md -->
-
 ```
 Usage of ./cpv:
   -address string
@@ -26,10 +25,12 @@ Usage of ./cpv:
     	Output cardinality of all extracted metrics to a file.
   -profile string
     	Collection profile that the command is being run for.
+  -quiet
+    	Suppress all output, and use $EDITOR for generated manifests.
   -rule-file string
     	Path to a valid rule file to extract metrics from, for eg., https://github.com/prometheus/prometheus/blob/v0.45.0/model/rulefmt/testdata/test.yaml. Requires -profile flag to be set.
   -status
-    	Report collection profiles implementation status. -profile may be empty to report status for all profiles.
+    	Report collection profiles' implementation status. -profile may be empty to report status for all profiles.
   -target-selectors string
     	Target selectors used to extract metrics, for eg., https://github.com/prometheus/client_golang/blob/644c80d1360fb1409a3fe8dfc5bad4228f282f3b/api/prometheus/v1/api_test.go#L1007. Requires -profile flag to be set.
   -validate
@@ -37,6 +38,7 @@ Usage of ./cpv:
   -version
     	Print version information.
 ```
+
 
 ### Scenarios
 
